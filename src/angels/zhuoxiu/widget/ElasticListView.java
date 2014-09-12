@@ -65,7 +65,6 @@ public class ElasticListView extends ListView {
 		super.onLayout(changed, l, t, r, b);
 		if (headerView != null) {
 			int h = headerView.getMeasuredHeight();
-			Log.i(tag, "h=" + h);
 			if (h > 0) {
 				final DisplayMetrics metrics = mContext.getResources().getDisplayMetrics();
 				final float density = metrics.density;
@@ -86,7 +85,7 @@ public class ElasticListView extends ListView {
 			int maxOverScrollY, boolean isTouchEvent) {
 		// This is where the magic happens, we have replaced the incoming
 		// maxOverScrollY with our own custom variable mMaxYOverscrollDistance; 
-		Log.i(tag, "scrollY=" + scrollY + " mMaxYOverscrollDistance=" + mMaxYOverscrollDistance+" isTouchEvent "+isTouchEvent);
+		//Log.i(tag, "scrollY=" + scrollY + " mMaxYOverscrollDistance=" + mMaxYOverscrollDistance+" isTouchEvent "+isTouchEvent);
 		if (headerView != null) {
 			if (-scrollY == mMaxYOverscrollDistance && headerView.getVisibility() != VISIBLE) {
 				headerView.setVisibility(VISIBLE);
