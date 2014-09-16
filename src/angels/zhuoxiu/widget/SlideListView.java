@@ -1,5 +1,6 @@
 package angels.zhuoxiu.widget;
 
+import android.animation.Animator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Build;
@@ -8,44 +9,35 @@ import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.animation.Animation;
+import android.view.animation.Transformation;
 import android.view.animation.Animation.AnimationListener;
 import android.view.animation.AnimationUtils;
 import android.widget.ListView;
 
-public class ElasticListView2 extends ListView {
-	static final String tag = ElasticListView2.class.getSimpleName();
+public class SlideListView extends ListView {
+	static final String tag = SlideListView.class.getSimpleName();
 	private static final int MAX_Y_OVERSCROLL_DISTANCE = 100;
 	private Context mContext;
 	private int mMaxYOverscrollDistance;
 	View headerView;
 
-	public ElasticListView2(Context context) {
-		super(context);
-		mContext = context;
-		initBounceListView();
+	public SlideListView(Context context) {
+		this(context, null);
 	}
 
-	public ElasticListView2(Context context, AttributeSet attrs) {
-		super(context, attrs);
-		mContext = context;
-		initBounceListView();
+	public SlideListView(Context context, AttributeSet attrs) {
+		this(context, attrs, 0);
 	}
 
-	public ElasticListView2(Context context, AttributeSet attrs, int defStyle) {
+	public SlideListView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
 		mContext = context;
 		initBounceListView();
 	}
 
 	private void initBounceListView() {
-		// get the density of the screen and do some maths with it on the max
-		// overscroll distance
-		// variable so that you get similar behaviors no matter what the screen
-		// size
-
 		final DisplayMetrics metrics = mContext.getResources().getDisplayMetrics();
 		final float density = metrics.density;
-
 		mMaxYOverscrollDistance = (int) (density * MAX_Y_OVERSCROLL_DISTANCE);
 	}
 
@@ -58,6 +50,81 @@ public class ElasticListView2 extends ListView {
 		}
 	}
 
+	@SuppressLint("NewApi")
+	@Override
+	public void removeView(final View child) {
+		if (Build.VERSION.SDK_INT >= VERSION_CODES.HONEYCOMB_MR1) {
+//			child.setVisibility(View.INVISIBLE);
+//			android.view.ViewPropertyAnimator vpa = child.animate();
+//			vpa.setDuration(1000);
+//			child.setPivotX(0);
+//			child.setPivotY(0);
+//		//	vpa.translationY(getHeight());
+//			vpa.scaleY(0);
+//			vpa.start();
+			animHideShowView(child,new AnimationListener() {
+				
+				@Override
+				public void onAnimationStart(Animation animation) {
+					// TODO Auto-generated method stub
+					
+				}
+				
+				@Override
+				public void onAnimationRepeat(Animation animation) {
+					// TODO Auto-generated method stub
+					
+				}
+				
+				@Override
+				public void onAnimationEnd(Animation animation) {
+					child.setVisibility(GONE);
+				}
+			},child.getMeasuredHeight()+child.getPaddingBottom()+child.getPaddingTop(),false,500);
+		}
+//		super.removeView(child);
+	}
+	
+    public static void animHideShowView(final View v, AnimationListener al, int measureHeight, final boolean show, int ainmTime) {
+
+        if (measureHeight == 0) {
+                measureHeight = v.getMeasuredHeight();
+        }
+        final int heightMeasure = measureHeight;
+        Animation anim = new Animation() {
+                @Override
+                protected void applyTransformation(float interpolatedTime, Transformation t) {
+
+                        if (interpolatedTime == 1) {
+                               
+                                v.setVisibility(show ? View.VISIBLE : View.GONE);
+                        } else {
+                                int height;
+                                if (show) {
+                                        height = (int) (heightMeasure * interpolatedTime);
+                                } else {
+                                        height = heightMeasure - (int) (heightMeasure * interpolatedTime);
+                                }
+                                v.getLayoutParams().height = height;
+                                v.requestLayout();
+                        }
+                }
+
+                @Override
+                public boolean willChangeBounds() {
+                        return true;
+                }
+        };
+
+        if (al != null) {
+                anim.setAnimationListener(al);
+        }
+        anim.setDuration(ainmTime);
+        v.startAnimation(anim);
+}
+
+	
+	
 	@Override
 	protected void onLayout(boolean changed, int l, int t, int r, int b) {
 		super.onLayout(changed, l, t, r, b);
@@ -76,14 +143,10 @@ public class ElasticListView2 extends ListView {
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 	}
 
-
 	@SuppressLint("NewApi")
 	@Override
 	protected boolean overScrollBy(int deltaX, int deltaY, int scrollX, int scrollY, int scrollRangeX, int scrollRangeY, int maxOverScrollX,
 			int maxOverScrollY, boolean isTouchEvent) {
-		// This is where the magic happens, we have replaced the incoming
-		// maxOverScrollY with our own custom variable mMaxYOverscrollDistance; 
-		//Log.i(tag, "scrollY=" + scrollY + " mMaxYOverscrollDistance=" + mMaxYOverscrollDistance+" isTouchEvent "+isTouchEvent);
 		if (headerView != null) {
 			if (-scrollY == mMaxYOverscrollDistance && headerView.getVisibility() != VISIBLE) {
 				headerView.setVisibility(VISIBLE);

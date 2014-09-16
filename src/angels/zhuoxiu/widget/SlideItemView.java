@@ -1,5 +1,6 @@
 package angels.zhuoxiu.widget;
 
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Build;
@@ -12,6 +13,7 @@ import android.widget.FrameLayout;
 import android.widget.Scroller;
 
 public class SlideItemView extends FrameLayout {
+	protected String tag = this.getClass().getSimpleName();
 
 	public interface OnSildeListener {
 		public void onSildeFinish(DIRECTION direction);
@@ -21,11 +23,10 @@ public class SlideItemView extends FrameLayout {
 		LEFT, RIGHT, MIDDLE
 	};
 
-	String tag = this.getClass().getSimpleName();
 	private Scroller scroller;
 	int mTouchSlop;
 	int downX, downY;
-	float startAlpha = 1.0f, endAlpha = 0.2f;
+	float startAlpha = 1.0f, endAlpha = 0.0f;
 	boolean enableSlideLeft = true, enableSlideRight = true;
 	private static final int SNAP_VELOCITY = 600;
 	private VelocityTracker velocityTracker;
@@ -35,7 +36,7 @@ public class SlideItemView extends FrameLayout {
 
 	public SlideItemView(Context context) {
 		this(context, null);
-	}
+	} 
 
 	public SlideItemView(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -45,14 +46,11 @@ public class SlideItemView extends FrameLayout {
 
 	@Override
 	public boolean onInterceptTouchEvent(MotionEvent ev) {
-		Log.i(tag, "onInterceptTouchEvent" + " action = " + ev.getAction());
 		return true;
 	}
 
 	@Override
 	public boolean dispatchTouchEvent(MotionEvent ev) {
-		Log.i(tag, "dispatchTouchEvent" + " action = " + ev.getAction());
-		int x = (int) ev.getX(), y = (int) ev.getY();
 		addVelocityTracker(ev);
 		switch (ev.getAction()) {
 		case MotionEvent.ACTION_DOWN:
@@ -92,15 +90,14 @@ public class SlideItemView extends FrameLayout {
 		case MotionEvent.ACTION_MOVE:
 			actionMoveCount++;
 			int deltaX = downX - x;
-			Log.i(tag, "deltaX = " + deltaX);
 			if (deltaX > 0 && enableSlideLeft || deltaX < 0 && enableSlideRight) {
 				scrollBy(deltaX, 0);
 			}
 			downX = x;
+			downY = y;
 			break;
 		case MotionEvent.ACTION_UP:
 			int velocityX = getScrollVelocity();
-			Log.d(tag, "velocityX = " + velocityX);
 			if (velocityX > SNAP_VELOCITY) {
 				scrollRight();
 			} else if (velocityX < -SNAP_VELOCITY) {
@@ -109,12 +106,12 @@ public class SlideItemView extends FrameLayout {
 				scrollByDistanceX();
 			}
 			recycleVelocityTracker();
-			if (actionMoveCount == 0) {
+			if (actionMoveCount <= 1) {
 				performClick();
 			}
 			break;
 		case MotionEvent.ACTION_CANCEL:
-			scrollBack();
+			scrollMiddle();
 			recycleVelocityTracker();
 			break;
 		}
@@ -143,49 +140,42 @@ public class SlideItemView extends FrameLayout {
 		}
 	}
 
-	private void scrollRight() {
-		int deltaX = 0;
+	/** 
+	 * scroll to right (negative value)
+	 */
+	public void scrollRight() {
 		if (position == DIRECTION.MIDDLE) {
 			direction = DIRECTION.RIGHT;
 			position = DIRECTION.RIGHT;
-			deltaX = getWidth() + getScrollX();
+			int deltaX = getWidth() + getScrollX();
+			scroller.startScroll(getScrollX(), 0, -deltaX, 0, Math.abs(deltaX));
+			postInvalidate(); // 刷新itemView
 		} else if (position == DIRECTION.LEFT) {
-			direction = DIRECTION.MIDDLE;
-			position = DIRECTION.MIDDLE;
-			deltaX = getScrollX();
+			scrollMiddle();
 		}
-		Log.wtf(tag, "getScrollX()=" + getScrollX() + " position=" + position + " direction=" + direction);
-		// 调用startScroll方法来设置一些滚动的参数，我们在computeScroll()方法中调用scrollTo来滚动item
-		scroller.startScroll(getScrollX(), 0, -deltaX, 0, Math.abs(deltaX));
-		postInvalidate(); // 刷新itemView
 	}
 
 	/** 
-	 * 向左滑动，根据上面我们知道向左滑动为正值 
+	 * scroll to left (positive value)
 	 */
-	private void scrollLeft() {
-		direction = DIRECTION.LEFT;
-		int deltaX = 0;
+	@SuppressLint("NewApi")
+	public void scrollLeft() {
 		if (position == DIRECTION.MIDDLE) {
 			direction = DIRECTION.LEFT;
 			position = DIRECTION.LEFT;
-			deltaX = getScrollX() - getWidth();
+			int deltaX = getScrollX() - getWidth();
+			scroller.startScroll(getScrollX(), 0, -deltaX, 0, Math.abs(deltaX));
+			postInvalidate(); // refresh
 		} else if (position == DIRECTION.RIGHT) {
-			direction = DIRECTION.MIDDLE;
-			position = DIRECTION.MIDDLE;
-			deltaX = getScrollX();
+			scrollMiddle();
 		}
 
-		// final int delta = (getWidth() - getScrollX());
-		// 调用startScroll方法来设置一些滚动的参数，我们在computeScroll()方法中调用scrollTo来滚动item
-		scroller.startScroll(getScrollX(), 0, -deltaX, 0, Math.abs(deltaX));
-		postInvalidate(); // 刷新itemView
 	}
 
-	void scrollBack() {
+	public void scrollMiddle() {
 		direction = DIRECTION.MIDDLE;
 		position = DIRECTION.MIDDLE;
-		scroller.startScroll(getScrollX(), getScrollY(), -getScrollX(), -getScrollY());
+		scroller.startScroll(getScrollX(), getScrollY(), -getScrollX(), -getScrollY(), Math.abs(getScrollX()));
 		postInvalidate();
 	}
 
@@ -197,13 +187,12 @@ public class SlideItemView extends FrameLayout {
 			scrollRight();
 		} else {
 			// 滚回到原始位置,为了偷下懒这里是直接调用scrollTo滚动
-			scrollBack();
+			scrollMiddle();
 		}
 
 	}
 
 	void addVelocityTracker(MotionEvent event) {
-		Log.i(tag, "velocityTracker add");
 		if (velocityTracker == null) {
 			velocityTracker = VelocityTracker.obtain();
 		}
@@ -212,7 +201,6 @@ public class SlideItemView extends FrameLayout {
 	}
 
 	void recycleVelocityTracker() {
-		Log.i(tag, "velocityTracker recycle");
 		if (velocityTracker != null) {
 			velocityTracker.recycle();
 			velocityTracker = null;
