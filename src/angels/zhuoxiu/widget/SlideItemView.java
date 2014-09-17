@@ -5,9 +5,14 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Build;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
+import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.animation.Animation;
+import android.view.animation.Animation.AnimationListener;
+import android.view.animation.Transformation;
 import android.widget.FrameLayout;
 import android.widget.Scroller;
 
@@ -32,9 +37,12 @@ public class SlideItemView extends FrameLayout {
 	boolean enableSlideLeft = true, enableSlideRight = true;
 	private static final int SNAP_VELOCITY = 600;
 	private VelocityTracker velocityTracker;
-	OnSildeListener listener;
+	OnSildeListener mListener;
+	AnimationListener hideShowAnimationListener;
 	DIRECTION direction = DIRECTION.MIDDLE, position = DIRECTION.MIDDLE;
 	int actionMoveCount;
+	static int ANIM_TIME_SHORT = 1000;
+	static int ANIM_TIME_MIDDLE = 2000;
 
 	public SlideItemView(Context context) {
 		this(context, null);
@@ -44,6 +52,44 @@ public class SlideItemView extends FrameLayout {
 		super(context, attrs);
 		scroller = new Scroller(context);
 		mTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
+		ANIM_TIME_SHORT = context.getResources().getInteger(android.R.integer.config_shortAnimTime);
+		ANIM_TIME_MIDDLE = context.getResources().getInteger(android.R.integer.config_mediumAnimTime);
+	}
+
+	public void animHideShowView(AnimationListener al, final boolean show) {
+		final int heightMeasure = getMeasuredHeight();
+		Animation anim = new Animation() {
+			@Override
+			protected void applyTransformation(float interpolatedTime, Transformation t) {
+				if (interpolatedTime == 0) {
+					SlideItemView.this.getLayoutParams().height = show ? 0 : heightMeasure;
+					SlideItemView.this.requestLayout();
+					SlideItemView.this.setVisibility(show ? View.VISIBLE : View.GONE);
+				} else if (interpolatedTime == 1) {
+					SlideItemView.this.setVisibility(show ? View.VISIBLE : View.GONE);
+				} else {
+					int height;
+					if (show) {
+						height = (int) (heightMeasure * interpolatedTime);
+					} else {
+						height = heightMeasure - (int) (heightMeasure * interpolatedTime);
+					}
+					SlideItemView.this.getLayoutParams().height = height;
+					SlideItemView.this.requestLayout();
+				}
+			}
+
+			@Override
+			public boolean willChangeBounds() {
+				return true;
+			}
+		};
+
+		if (al != null) {
+			anim.setAnimationListener(al);
+		}
+		anim.setDuration(ANIM_TIME_MIDDLE);
+		this.startAnimation(anim);
 	}
 
 	@Override
@@ -63,7 +109,6 @@ public class SlideItemView extends FrameLayout {
 			if (Math.abs(getScrollVelocity()) > SNAP_VELOCITY || (Math.abs(ev.getX() - downX) > mTouchSlop && Math.abs(ev.getY() - downY) < mTouchSlop)) {
 				isSlide = true;
 			}
-
 			break;
 		case MotionEvent.ACTION_UP:
 			// recycleVelocityTracker();
@@ -105,9 +150,9 @@ public class SlideItemView extends FrameLayout {
 			case MotionEvent.ACTION_UP:
 				int velocityX = getScrollVelocity();
 				if (velocityX > SNAP_VELOCITY) {
-					scrollRight();
+					scrollRight(mListener);
 				} else if (velocityX < -SNAP_VELOCITY) {
-					scrollLeft();
+					scrollLeft(mListener);
 				} else {
 					scrollByDistanceX();
 				}
@@ -117,7 +162,7 @@ public class SlideItemView extends FrameLayout {
 				}
 				break;
 			case MotionEvent.ACTION_CANCEL:
-				scrollMiddle();
+				scrollMiddle(mListener);
 				recycleVelocityTracker();
 				isSlide = false;
 				break;
@@ -141,8 +186,8 @@ public class SlideItemView extends FrameLayout {
 			postInvalidate();
 			// 滚动动画结束的时候调用回调接口
 			if (scroller.isFinished()) {
-				if (listener != null) {
-					listener.onSildeFinish(this, direction);
+				if (mListener != null) {
+					mListener.onSildeFinish(this, direction);
 				}
 			}
 		}
@@ -151,62 +196,96 @@ public class SlideItemView extends FrameLayout {
 	/** 
 	 * scroll to right (negative value)
 	 */
-	public void scrollRight() {
+	public void scrollRight(OnSildeListener istener) {
+		if (!scroller.isFinished()) {
+			return;
+		}
 		if (position == DIRECTION.MIDDLE) {
 			direction = DIRECTION.RIGHT;
 			position = DIRECTION.RIGHT;
 			int deltaX = getWidth() + getScrollX();
-			scroller.startScroll(getScrollX(), 0, -deltaX, 0, Math.abs(deltaX));
+			scroller.startScroll(getScrollX(), 0, -deltaX, 0, ANIM_TIME_MIDDLE);
 			postInvalidate(); // 刷新itemView
 		} else if (position == DIRECTION.LEFT) {
-			scrollMiddle();
-		}
-		if (listener!=null){
-			listener.onSlideBegin(this, direction);
+			scrollMiddle(mListener);
 		}
 		
+		if (istener == null) {
+			istener = mListener;
+		}
+		if (istener != null) {
+			istener.onSlideBegin(this, direction);
+		}
+
 	}
 
 	/** 
 	 * scroll to left (positive value)
 	 */
 	@SuppressLint("NewApi")
-	public void scrollLeft() {
+	public void scrollLeft(OnSildeListener istener) {
+		if (!scroller.isFinished()) {
+			return;
+		}
 		if (position == DIRECTION.MIDDLE) {
 			direction = DIRECTION.LEFT;
 			position = DIRECTION.LEFT;
 			int deltaX = getScrollX() - getWidth();
-			scroller.startScroll(getScrollX(), 0, -deltaX, 0, Math.abs(deltaX));
+			scroller.startScroll(getScrollX(), 0, -deltaX, 0, ANIM_TIME_MIDDLE);
 			postInvalidate(); // refresh
 		} else if (position == DIRECTION.RIGHT) {
-			scrollMiddle();
+			scrollMiddle(mListener);
 		}
-		
-		if (listener!=null){
-			listener.onSlideBegin(this, direction);
+
+		if (istener == null) {
+			istener = mListener;
+		}
+
+		if (istener != null) {
+			istener.onSlideBegin(this, direction);
 		}
 
 	}
 
-	public void scrollMiddle() {
+	public void scrollMiddle(OnSildeListener istener) {
+		if (!scroller.isFinished()) {
+			return;
+		}
 		direction = DIRECTION.MIDDLE;
 		position = DIRECTION.MIDDLE;
-		scroller.startScroll(getScrollX(), getScrollY(), -getScrollX(), -getScrollY(), Math.abs(getScrollX()));
+		scroller.startScroll(getScrollX(), getScrollY(), -getScrollX(), -getScrollY(), ANIM_TIME_MIDDLE);
 		postInvalidate();
-		if (listener!=null){
-			listener.onSlideBegin(this, direction);
+		
+		if (istener == null) {
+			istener = mListener;
+		}
+		if (istener != null) {
+			istener.onSlideBegin(this, direction);
 		}
 	}
 
+	@SuppressLint("NewApi")
+	public void setMiddle() {
+		direction = DIRECTION.MIDDLE;
+		position = DIRECTION.MIDDLE;
+		scroller.startScroll(getScrollX(), getScrollY(), -getScrollX(), -getScrollY(), 0);
+		this.getLayoutParams().height = getMeasuredHeight();
+		this.requestLayout();
+		postInvalidate();
+	}
+
+	/**
+	 * If slide more than half of the width, then slide it out
+	 */
 	private void scrollByDistanceX() {
 		// 如果向左滚动的距离大于屏幕的二分之一，就让其删除
 		if (getScrollX() >= getWidth() * 0.5) {
-			scrollLeft();
+			scrollLeft(mListener);
 		} else if (getScrollX() <= -getWidth() * 0.5) {
-			scrollRight();
+			scrollRight(mListener);
 		} else {
 			// 滚回到原始位置,为了偷下懒这里是直接调用scrollTo滚动
-			scrollMiddle();
+			scrollMiddle(mListener);
 		}
 
 	}
@@ -240,6 +319,6 @@ public class SlideItemView extends FrameLayout {
 	}
 
 	public void setOnSlideListener(OnSildeListener listener) {
-		this.listener = listener;
+		this.mListener = listener;
 	}
 }
