@@ -1,6 +1,5 @@
 package angels.zhuoxiu.widget;
 
-import android.animation.Animator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.Build;
@@ -9,17 +8,23 @@ import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.view.View;
 import android.view.animation.Animation;
-import android.view.animation.Transformation;
 import android.view.animation.Animation.AnimationListener;
 import android.view.animation.AnimationUtils;
+import android.view.animation.Transformation;
 import android.widget.ListView;
 
 public class SlideListView extends ListView {
 	static final String tag = SlideListView.class.getSimpleName();
+
+	public interface OnRemoveViewListener {
+		public void onRemoveView(View removedView);
+	}
+
 	private static final int MAX_Y_OVERSCROLL_DISTANCE = 100;
 	private Context mContext;
 	private int mMaxYOverscrollDistance;
 	View headerView;
+	OnRemoveViewListener onRemoveViewListener;
 
 	public SlideListView(Context context) {
 		this(context, null);
@@ -54,77 +59,78 @@ public class SlideListView extends ListView {
 	@Override
 	public void removeView(final View child) {
 		if (Build.VERSION.SDK_INT >= VERSION_CODES.HONEYCOMB_MR1) {
-//			child.setVisibility(View.INVISIBLE);
-//			android.view.ViewPropertyAnimator vpa = child.animate();
-//			vpa.setDuration(1000);
-//			child.setPivotX(0);
-//			child.setPivotY(0);
-//		//	vpa.translationY(getHeight());
-//			vpa.scaleY(0);
-//			vpa.start();
-			animHideShowView(child,new AnimationListener() {
-				
+			// child.setVisibility(View.INVISIBLE);
+			// android.view.ViewPropertyAnimator vpa = child.animate();
+			// vpa.setDuration(1000);
+			// child.setPivotX(0);
+			// child.setPivotY(0);
+			// // vpa.translationY(getHeight());
+			// vpa.scaleY(0);
+			// vpa.start();
+			animHideShowView(child, new AnimationListener() {
+
 				@Override
 				public void onAnimationStart(Animation animation) {
 					// TODO Auto-generated method stub
-					
+
 				}
-				
+
 				@Override
 				public void onAnimationRepeat(Animation animation) {
 					// TODO Auto-generated method stub
-					
+
 				}
-				
+
 				@Override
 				public void onAnimationEnd(Animation animation) {
 					child.setVisibility(GONE);
+					if (onRemoveViewListener != null) {
+						onRemoveViewListener.onRemoveView(child);
+					}
 				}
-			},child.getMeasuredHeight()+child.getPaddingBottom()+child.getPaddingTop(),false,500);
+			}, child.getMeasuredHeight() + child.getPaddingBottom() + child.getPaddingTop(), false, 300);
 		}
-//		super.removeView(child);
+		// super.removeView(child);
 	}
-	
-    public static void animHideShowView(final View v, AnimationListener al, int measureHeight, final boolean show, int ainmTime) {
 
-        if (measureHeight == 0) {
-                measureHeight = v.getMeasuredHeight();
-        }
-        final int heightMeasure = measureHeight;
-        Animation anim = new Animation() {
-                @Override
-                protected void applyTransformation(float interpolatedTime, Transformation t) {
+	public static void animHideShowView(final View v, AnimationListener al, int measureHeight, final boolean show, int ainmTime) {
 
-                        if (interpolatedTime == 1) {
-                               
-                                v.setVisibility(show ? View.VISIBLE : View.GONE);
-                        } else {
-                                int height;
-                                if (show) {
-                                        height = (int) (heightMeasure * interpolatedTime);
-                                } else {
-                                        height = heightMeasure - (int) (heightMeasure * interpolatedTime);
-                                }
-                                v.getLayoutParams().height = height;
-                                v.requestLayout();
-                        }
-                }
+		if (measureHeight == 0) {
+			measureHeight = v.getMeasuredHeight();
+		}
+		final int heightMeasure = measureHeight;
+		Animation anim = new Animation() {
+			@Override
+			protected void applyTransformation(float interpolatedTime, Transformation t) {
 
-                @Override
-                public boolean willChangeBounds() {
-                        return true;
-                }
-        };
+				if (interpolatedTime == 1) {
 
-        if (al != null) {
-                anim.setAnimationListener(al);
-        }
-        anim.setDuration(ainmTime);
-        v.startAnimation(anim);
-}
+					v.setVisibility(show ? View.VISIBLE : View.GONE);
+				} else {
+					int height;
+					if (show) {
+						height = (int) (heightMeasure * interpolatedTime);
+					} else {
+						height = heightMeasure - (int) (heightMeasure * interpolatedTime);
+					}
+					v.getLayoutParams().height = height;
+					v.requestLayout();
+				}
+			}
 
-	
-	
+			@Override
+			public boolean willChangeBounds() {
+				return true;
+			}
+		};
+
+		if (al != null) {
+			anim.setAnimationListener(al);
+		}
+		anim.setDuration(ainmTime);
+		v.startAnimation(anim);
+	}
+
 	@Override
 	protected void onLayout(boolean changed, int l, int t, int r, int b) {
 		super.onLayout(changed, l, t, r, b);
@@ -141,6 +147,10 @@ public class SlideListView extends ListView {
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+	}
+
+	public void setOnRemoveViewListener(OnRemoveViewListener listener) {
+		this.onRemoveViewListener = listener;
 	}
 
 	@SuppressLint("NewApi")

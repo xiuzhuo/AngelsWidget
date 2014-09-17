@@ -5,7 +5,6 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Build;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.ViewConfiguration;
@@ -16,7 +15,9 @@ public class SlideItemView extends FrameLayout {
 	protected String tag = this.getClass().getSimpleName();
 
 	public interface OnSildeListener {
-		public void onSildeFinish(DIRECTION direction);
+		public void onSlideBegin(SlideItemView v, DIRECTION direction);
+
+		public void onSildeFinish(SlideItemView v, DIRECTION direction);
 	}
 
 	public enum DIRECTION {
@@ -24,9 +25,10 @@ public class SlideItemView extends FrameLayout {
 	};
 
 	private Scroller scroller;
+	boolean isSlide = false;
 	int mTouchSlop;
 	int downX, downY;
-	float startAlpha = 1.0f, endAlpha = 0.0f;
+	float startAlpha = 1.0f, endAlpha = 1.0f;
 	boolean enableSlideLeft = true, enableSlideRight = true;
 	private static final int SNAP_VELOCITY = 600;
 	private VelocityTracker velocityTracker;
@@ -36,7 +38,7 @@ public class SlideItemView extends FrameLayout {
 
 	public SlideItemView(Context context) {
 		this(context, null);
-	} 
+	}
 
 	public SlideItemView(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -58,6 +60,10 @@ public class SlideItemView extends FrameLayout {
 			downY = (int) ev.getY();
 			break;
 		case MotionEvent.ACTION_MOVE:
+			if (Math.abs(getScrollVelocity()) > SNAP_VELOCITY || (Math.abs(ev.getX() - downX) > mTouchSlop && Math.abs(ev.getY() - downY) < mTouchSlop)) {
+				isSlide = true;
+			}
+
 			break;
 		case MotionEvent.ACTION_UP:
 			// recycleVelocityTracker();
@@ -79,44 +85,46 @@ public class SlideItemView extends FrameLayout {
 
 	@Override
 	public boolean onTouchEvent(MotionEvent ev) {
-		Log.i(tag, "onTouchEvent" + " action = " + ev.getAction());
-		// requestDisallowInterceptTouchEvent(true);
-		addVelocityTracker(ev);
-		int x = (int) ev.getX(), y = (int) ev.getY();
-		switch (ev.getAction()) {
-		case MotionEvent.ACTION_DOWN:
-			actionMoveCount = 0;
-			break;
-		case MotionEvent.ACTION_MOVE:
-			actionMoveCount++;
-			int deltaX = downX - x;
-			if (deltaX > 0 && enableSlideLeft || deltaX < 0 && enableSlideRight) {
-				scrollBy(deltaX, 0);
+		if (isSlide) {
+			requestDisallowInterceptTouchEvent(true);
+			addVelocityTracker(ev);
+			int x = (int) ev.getX(), y = (int) ev.getY();
+			switch (ev.getAction()) {
+			case MotionEvent.ACTION_DOWN:
+				actionMoveCount = 0;
+				break;
+			case MotionEvent.ACTION_MOVE:
+				actionMoveCount++;
+				int deltaX = downX - x;
+				if (deltaX > 0 && enableSlideLeft || deltaX < 0 && enableSlideRight) {
+					scrollBy(deltaX, 0);
+				}
+				downX = x;
+				downY = y;
+				break;
+			case MotionEvent.ACTION_UP:
+				int velocityX = getScrollVelocity();
+				if (velocityX > SNAP_VELOCITY) {
+					scrollRight();
+				} else if (velocityX < -SNAP_VELOCITY) {
+					scrollLeft();
+				} else {
+					scrollByDistanceX();
+				}
+				recycleVelocityTracker();
+				if (actionMoveCount <= 1) {
+					performClick();
+				}
+				break;
+			case MotionEvent.ACTION_CANCEL:
+				scrollMiddle();
+				recycleVelocityTracker();
+				isSlide = false;
+				break;
 			}
-			downX = x;
-			downY = y;
-			break;
-		case MotionEvent.ACTION_UP:
-			int velocityX = getScrollVelocity();
-			if (velocityX > SNAP_VELOCITY) {
-				scrollRight();
-			} else if (velocityX < -SNAP_VELOCITY) {
-				scrollLeft();
-			} else {
-				scrollByDistanceX();
-			}
-			recycleVelocityTracker();
-			if (actionMoveCount <= 1) {
-				performClick();
-			}
-			break;
-		case MotionEvent.ACTION_CANCEL:
-			scrollMiddle();
-			recycleVelocityTracker();
-			break;
+			return true;
 		}
-
-		return true;
+		return super.onTouchEvent(ev);
 	}
 
 	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
@@ -134,7 +142,7 @@ public class SlideItemView extends FrameLayout {
 			// 滚动动画结束的时候调用回调接口
 			if (scroller.isFinished()) {
 				if (listener != null) {
-					listener.onSildeFinish(direction);
+					listener.onSildeFinish(this, direction);
 				}
 			}
 		}
@@ -153,6 +161,10 @@ public class SlideItemView extends FrameLayout {
 		} else if (position == DIRECTION.LEFT) {
 			scrollMiddle();
 		}
+		if (listener!=null){
+			listener.onSlideBegin(this, direction);
+		}
+		
 	}
 
 	/** 
@@ -169,6 +181,10 @@ public class SlideItemView extends FrameLayout {
 		} else if (position == DIRECTION.RIGHT) {
 			scrollMiddle();
 		}
+		
+		if (listener!=null){
+			listener.onSlideBegin(this, direction);
+		}
 
 	}
 
@@ -177,6 +193,9 @@ public class SlideItemView extends FrameLayout {
 		position = DIRECTION.MIDDLE;
 		scroller.startScroll(getScrollX(), getScrollY(), -getScrollX(), -getScrollY(), Math.abs(getScrollX()));
 		postInvalidate();
+		if (listener!=null){
+			listener.onSlideBegin(this, direction);
+		}
 	}
 
 	private void scrollByDistanceX() {
