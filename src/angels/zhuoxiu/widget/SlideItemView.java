@@ -35,10 +35,9 @@ public class SlideItemView extends FrameLayout {
 	int downX, downY;
 	float startAlpha = 1.0f, endAlpha = 1.0f;
 	boolean enableSlideLeft = true, enableSlideRight = true;
-	private static final int SNAP_VELOCITY = 600;
+	private static final int SNAP_VELOCITY = 400;
 	private VelocityTracker velocityTracker;
 	OnSildeListener mListener;
-	AnimationListener hideShowAnimationListener;
 	DIRECTION direction = DIRECTION.MIDDLE, position = DIRECTION.MIDDLE;
 	int actionMoveCount;
 	static int ANIM_TIME_SHORT = 1000;
@@ -56,15 +55,50 @@ public class SlideItemView extends FrameLayout {
 		ANIM_TIME_MIDDLE = context.getResources().getInteger(android.R.integer.config_mediumAnimTime);
 	}
 
+	@SuppressLint("NewApi")
+	public void animSlideLeftRight(AnimationListener al, final DIRECTION direction) {
+		final int widthMeasure = getMeasuredWidth();
+		final float xStart = getX();
+		Animation anim = new Animation() {
+			@Override
+			protected void applyTransformation(float interpolatedTime, Transformation t) {
+				if (interpolatedTime == 0) {
+
+				} else if (interpolatedTime == 1) {
+				} else {
+					float xNew = 0;
+					switch (direction) {
+					case LEFT:
+						xNew = -interpolatedTime * widthMeasure + (1 - interpolatedTime) * xStart;
+						break;
+					case RIGHT:
+						xNew = interpolatedTime * widthMeasure + (1 - interpolatedTime) * xStart;
+						break;
+					}
+					SlideItemView.this.setX(xNew);
+				}
+			}
+
+			@Override
+			public boolean willChangeBounds() {
+				return true;
+			}
+		};
+
+		if (al != null) {
+			anim.setAnimationListener(al);
+		}
+		anim.setDuration(ANIM_TIME_MIDDLE);
+		this.startAnimation(anim);
+	}
+
 	public void animHideShowView(AnimationListener al, final boolean show) {
 		final int heightMeasure = getMeasuredHeight();
 		Animation anim = new Animation() {
 			@Override
 			protected void applyTransformation(float interpolatedTime, Transformation t) {
 				if (interpolatedTime == 0) {
-					SlideItemView.this.getLayoutParams().height = show ? 0 : heightMeasure;
-					SlideItemView.this.requestLayout();
-					SlideItemView.this.setVisibility(show ? View.VISIBLE : View.GONE);
+					SlideItemView.this.setVisibility(show ? View.GONE : View.VISIBLE);
 				} else if (interpolatedTime == 1) {
 					SlideItemView.this.setVisibility(show ? View.VISIBLE : View.GONE);
 				} else {
@@ -197,7 +231,7 @@ public class SlideItemView extends FrameLayout {
 	 * scroll to right (negative value)
 	 */
 	public void scrollRight(OnSildeListener istener) {
-		if (!scroller.isFinished()) {
+		if (!scroller.isFinished() || !enableSlideRight) {
 			return;
 		}
 		if (position == DIRECTION.MIDDLE) {
@@ -209,7 +243,7 @@ public class SlideItemView extends FrameLayout {
 		} else if (position == DIRECTION.LEFT) {
 			scrollMiddle(mListener);
 		}
-		
+
 		if (istener == null) {
 			istener = mListener;
 		}
@@ -224,7 +258,7 @@ public class SlideItemView extends FrameLayout {
 	 */
 	@SuppressLint("NewApi")
 	public void scrollLeft(OnSildeListener istener) {
-		if (!scroller.isFinished()) {
+		if (!scroller.isFinished() || !enableSlideLeft) {
 			return;
 		}
 		if (position == DIRECTION.MIDDLE) {
@@ -255,23 +289,13 @@ public class SlideItemView extends FrameLayout {
 		position = DIRECTION.MIDDLE;
 		scroller.startScroll(getScrollX(), getScrollY(), -getScrollX(), -getScrollY(), ANIM_TIME_MIDDLE);
 		postInvalidate();
-		
+
 		if (istener == null) {
 			istener = mListener;
 		}
 		if (istener != null) {
 			istener.onSlideBegin(this, direction);
 		}
-	}
-
-	@SuppressLint("NewApi")
-	public void setMiddle() {
-		direction = DIRECTION.MIDDLE;
-		position = DIRECTION.MIDDLE;
-		scroller.startScroll(getScrollX(), getScrollY(), -getScrollX(), -getScrollY(), 0);
-		this.getLayoutParams().height = getMeasuredHeight();
-		this.requestLayout();
-		postInvalidate();
 	}
 
 	/**

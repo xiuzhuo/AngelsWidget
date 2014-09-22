@@ -10,7 +10,6 @@ import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.Animation.AnimationListener;
 import android.view.animation.AnimationUtils;
-import android.view.animation.Transformation;
 import android.widget.ListView;
 
 public class SlideListView extends ListView {
@@ -88,6 +87,7 @@ public class SlideListView extends ListView {
 			} else if (scrollY == 0 && headerView.getVisibility() == VISIBLE) {
 				Animation animation = AnimationUtils.loadAnimation(getContext(), android.R.anim.fade_out);
 				animation.setAnimationListener(new AnimationListener() {
+					
 					@Override
 					public void onAnimationStart(Animation animation) {
 					}
