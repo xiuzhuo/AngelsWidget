@@ -148,9 +148,11 @@ public class SlideItemView extends FrameLayout {
 			// recycleVelocityTracker();
 			break;
 		}
+		
 		return super.dispatchTouchEvent(ev);
 	}
 
+	
 	/** 
 	 * 获取X方向的滑动速度,大于0向右滑动，反之向左 
 	 *  
