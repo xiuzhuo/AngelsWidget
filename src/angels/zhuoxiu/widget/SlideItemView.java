@@ -5,19 +5,29 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Build;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.animation.Animation;
 import android.view.animation.Animation.AnimationListener;
+import android.view.animation.AnimationSet;
 import android.view.animation.Transformation;
 import android.widget.FrameLayout;
 import android.widget.Scroller;
 
-public class SlideItemView extends FrameLayout {
+public class SlideItemView extends FrameLayout implements AnimationType {
 	protected String tag = this.getClass().getSimpleName();
+
+	public interface ItemAnimationListener {
+		public void onAnimationStart(View view, int type, int index);
+
+		public void onAnimationEnd(View view, int type, int index);
+	}
+
+	public interface SlideTrigger {
+		public void onTriggerSlide(SlideItemView v, DIRECTION direction);
+	}
 
 	public interface OnSildeListener {
 		public void onSlideBegin(SlideItemView v, DIRECTION direction);
@@ -35,9 +45,11 @@ public class SlideItemView extends FrameLayout {
 	int downX, downY;
 	float startAlpha = 1.0f, endAlpha = 1.0f;
 	boolean enableSlideLeft = true, enableSlideRight = true;
-	private static final int SNAP_VELOCITY = 400;
+	private static final int SNAP_VELOCITY = 800;
 	private VelocityTracker velocityTracker;
 	OnSildeListener mListener;
+	ItemAnimationListener itemAnimationListener;
+	SlideTrigger slideTrigger;
 	DIRECTION direction = DIRECTION.MIDDLE, position = DIRECTION.MIDDLE;
 	int actionMoveCount;
 	static int ANIM_TIME_SHORT = 1000;
@@ -53,6 +65,92 @@ public class SlideItemView extends FrameLayout {
 		mTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
 		ANIM_TIME_SHORT = context.getResources().getInteger(android.R.integer.config_shortAnimTime);
 		ANIM_TIME_MIDDLE = context.getResources().getInteger(android.R.integer.config_mediumAnimTime);
+	}
+
+	public void doAnimation(final ItemAnimationListener itemAnimListener, int... types) {
+		final int measuredWidth = getMeasuredWidth();
+		final int measuredHeight = getMeasuredHeight();
+		final float startAlpha = getAlpha(), startX = getX(), startY = getY();
+		AnimationSet animSet = new AnimationSet(true);
+		for (int i = 0; i < types.length; i++) {
+			final int type = types[i];
+			final int index = i;
+			Animation anim = new Animation() {
+				@Override
+				protected void applyTransformation(float time, Transformation t) {
+					if (time == 0) {
+
+					} else if (time == 1) {
+
+					} else {
+						setAlpha((type & TYPE_FADE_IN) > 0 ^ (type & TYPE_FADE_OUT) > 0 ? ((type & TYPE_FADE_IN) > 0 ? time * startAlpha : (1 - time)
+								* startAlpha) : startAlpha);
+
+						if ((type & TYPE_SLIDE_MIDDLE) > 0 ^ (type & TYPE_SLIDE_IN_LEFT) > 0 ^ (type & TYPE_SLIDE_OUT_LEFT) > 0
+								^ (type & TYPE_SLIDE_IN_RIGHT) > 0 ^ (type & TYPE_SLIDE_OUT_RIGHT) > 0) {
+							if ((type & TYPE_SLIDE_MIDDLE) > 0) {
+								setX((1 - time) * startX);
+							} else if ((type & TYPE_SLIDE_IN_LEFT) > 0) {
+								setX((1 - time) * (-measuredWidth));
+							} else if ((type & TYPE_SLIDE_OUT_LEFT) > 0) {
+								setX((1 - time) * startX + time * (-measuredWidth));
+							} else if ((type & TYPE_SLIDE_IN_RIGHT) > 0) {
+								setX((1 - time) * measuredWidth);
+							} else if ((type & TYPE_SLIDE_OUT_RIGHT) > 0) {
+								setX((1 - time) * startX + time * measuredWidth);
+							}
+
+						}
+						if ((type & TYPE_STRETCH_X) > 0 ^ (type & TYPE_SHRINK_X) > 0) {
+							getLayoutParams().width = ((type & TYPE_STRETCH_X) > 0 ? (int) (measuredWidth * time) : measuredWidth
+									- (int) (time * measuredWidth));
+							requestLayout();
+						}
+						if ((type & TYPE_STRETCH_Y) > 0 ^ (type & TYPE_SHRINK_Y) > 0) {
+							getLayoutParams().height = ((type & TYPE_STRETCH_Y) > 0 ? (int) (measuredHeight * time) : measuredHeight
+									- (int) (measuredHeight * time));
+							requestLayout();
+						}
+					}
+				}
+
+				@Override
+				public boolean willChangeBounds() {
+					return true;
+				}
+			};
+			anim.setDuration(ANIM_TIME_MIDDLE);
+			anim.setAnimationListener(new AnimationListener() {
+				@Override
+				public void onAnimationStart(Animation animation) {
+					if (itemAnimListener != null) {
+						itemAnimListener.onAnimationStart(SlideItemView.this, type, index);
+					}
+				}
+
+				@Override
+				public void onAnimationRepeat(Animation animation) {
+
+				}
+
+				@Override
+				public void onAnimationEnd(Animation animation) {
+					if (itemAnimListener != null) {
+						itemAnimListener.onAnimationEnd(SlideItemView.this, type, index);
+					}
+				}
+			});
+			animSet.addAnimation(anim);
+		}
+		startAnimation(animSet);
+	}
+
+	public void setAnimationListener(ItemAnimationListener al) {
+		this.itemAnimationListener = al;
+	}
+
+	public void setSlideTrigger(SlideTrigger trigger) {
+		this.slideTrigger = trigger;
 	}
 
 	@SuppressLint("NewApi")
@@ -148,11 +246,10 @@ public class SlideItemView extends FrameLayout {
 			// recycleVelocityTracker();
 			break;
 		}
-		
+
 		return super.dispatchTouchEvent(ev);
 	}
 
-	
 	/** 
 	 * 获取X方向的滑动速度,大于0向右滑动，反之向左 
 	 *  
@@ -176,26 +273,44 @@ public class SlideItemView extends FrameLayout {
 				break;
 			case MotionEvent.ACTION_MOVE:
 				actionMoveCount++;
-				int deltaX = downX - x;
-				if (deltaX > 0 && enableSlideLeft || deltaX < 0 && enableSlideRight) {
-					scrollBy(deltaX, 0);
-				}
+				int deltaX = x - downX;
+				setX(getX() + deltaX);
+
+				// if (deltaX > 0 && enableSlideLeft || deltaX < 0 &&
+				// enableSlideRight) {
+				// scrollBy(deltaX, 0);
+				// }
 				downX = x;
 				downY = y;
 				break;
 			case MotionEvent.ACTION_UP:
-				int velocityX = getScrollVelocity();
-				if (velocityX > SNAP_VELOCITY) {
-					scrollRight(mListener);
-				} else if (velocityX < -SNAP_VELOCITY) {
-					scrollLeft(mListener);
-				} else {
-					scrollByDistanceX();
-				}
-				recycleVelocityTracker();
 				if (actionMoveCount <= 1) {
 					performClick();
+					break;
 				}
+				int velocityX = getScrollVelocity();
+				DIRECTION mDirection;
+				if (velocityX > SNAP_VELOCITY) {
+					// scrollRight(mListener);
+					if (getX() < 0) {
+						mDirection = DIRECTION.MIDDLE;
+					} else {
+						mDirection = DIRECTION.RIGHT;
+					}
+				} else if (velocityX < -SNAP_VELOCITY) {
+					// scrollLeft(mListener);
+					if (getX() >= 0) {
+						mDirection = DIRECTION.MIDDLE;
+					} else {
+						mDirection = DIRECTION.LEFT;
+					}
+
+				} else {
+					mDirection = DIRECTION.MIDDLE;
+				}
+
+				slideTrigger.onTriggerSlide(this, mDirection);
+				recycleVelocityTracker();
 				break;
 			case MotionEvent.ACTION_CANCEL:
 				scrollMiddle(mListener);
