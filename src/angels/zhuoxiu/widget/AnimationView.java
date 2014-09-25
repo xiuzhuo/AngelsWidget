@@ -16,23 +16,17 @@ import android.view.animation.Transformation;
 import android.widget.FrameLayout;
 import android.widget.Scroller;
 
-public class SlideItemView extends FrameLayout implements AnimationType {
+public class AnimationView extends FrameLayout implements AnimationType {
 	protected String tag = this.getClass().getSimpleName();
 
-	public interface ItemAnimationListener {
+	public interface AnimationViewListener {
 		public void onAnimationStart(View view, int type, int index);
 
 		public void onAnimationEnd(View view, int type, int index);
 	}
 
 	public interface SlideTrigger {
-		public void onTriggerSlide(SlideItemView v, DIRECTION direction);
-	}
-
-	public interface OnSildeListener {
-		public void onSlideBegin(SlideItemView v, DIRECTION direction);
-
-		public void onSildeFinish(SlideItemView v, DIRECTION direction);
+		public void onTriggerSlide(AnimationView v, DIRECTION direction);
 	}
 
 	public enum DIRECTION {
@@ -47,19 +41,18 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 	boolean enableSlideLeft = true, enableSlideRight = true;
 	private static final int SNAP_VELOCITY = 800;
 	private VelocityTracker velocityTracker;
-	OnSildeListener mListener;
-	ItemAnimationListener itemAnimationListener;
+	AnimationViewListener itemAnimationListener;
 	SlideTrigger slideTrigger;
 	DIRECTION direction = DIRECTION.MIDDLE, position = DIRECTION.MIDDLE;
 	int actionMoveCount;
 	static int ANIM_TIME_SHORT = 1000;
 	static int ANIM_TIME_MIDDLE = 2000;
 
-	public SlideItemView(Context context) {
+	public AnimationView(Context context) {
 		this(context, null);
 	}
 
-	public SlideItemView(Context context, AttributeSet attrs) {
+	public AnimationView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		scroller = new Scroller(context);
 		mTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
@@ -67,7 +60,7 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 		ANIM_TIME_MIDDLE = context.getResources().getInteger(android.R.integer.config_mediumAnimTime);
 	}
 
-	public void doAnimation(final ItemAnimationListener itemAnimListener, int... types) {
+	public void doAnimation(final AnimationViewListener itemAnimListener, final int... types) {
 		final int measuredWidth = getMeasuredWidth();
 		final int measuredHeight = getMeasuredHeight();
 		final float startAlpha = getAlpha(), startX = getX(), startY = getY();
@@ -124,7 +117,7 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 				@Override
 				public void onAnimationStart(Animation animation) {
 					if (itemAnimListener != null) {
-						itemAnimListener.onAnimationStart(SlideItemView.this, type, index);
+						itemAnimListener.onAnimationStart(AnimationView.this, type, index);
 					}
 				}
 
@@ -136,16 +129,19 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 				@Override
 				public void onAnimationEnd(Animation animation) {
 					if (itemAnimListener != null) {
-						itemAnimListener.onAnimationEnd(SlideItemView.this, type, index);
+						itemAnimListener.onAnimationEnd(AnimationView.this, type, index);
 					}
 				}
 			});
+			anim.setFillAfter(true);
+			anim.setFillBefore(true);
+			anim.setStartOffset(index*ANIM_TIME_MIDDLE);
 			animSet.addAnimation(anim);
 		}
 		startAnimation(animSet);
 	}
 
-	public void setAnimationListener(ItemAnimationListener al) {
+	public void setAnimationListener(AnimationViewListener al) {
 		this.itemAnimationListener = al;
 	}
 
@@ -173,7 +169,7 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 						xNew = interpolatedTime * widthMeasure + (1 - interpolatedTime) * xStart;
 						break;
 					}
-					SlideItemView.this.setX(xNew);
+					AnimationView.this.setX(xNew);
 				}
 			}
 
@@ -196,9 +192,9 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 			@Override
 			protected void applyTransformation(float interpolatedTime, Transformation t) {
 				if (interpolatedTime == 0) {
-					SlideItemView.this.setVisibility(show ? View.GONE : View.VISIBLE);
+					AnimationView.this.setVisibility(show ? View.GONE : View.VISIBLE);
 				} else if (interpolatedTime == 1) {
-					SlideItemView.this.setVisibility(show ? View.VISIBLE : View.GONE);
+					AnimationView.this.setVisibility(show ? View.VISIBLE : View.GONE);
 				} else {
 					int height;
 					if (show) {
@@ -206,8 +202,8 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 					} else {
 						height = heightMeasure - (int) (heightMeasure * interpolatedTime);
 					}
-					SlideItemView.this.getLayoutParams().height = height;
-					SlideItemView.this.requestLayout();
+					AnimationView.this.getLayoutParams().height = height;
+					AnimationView.this.requestLayout();
 				}
 			}
 
@@ -313,7 +309,7 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 				recycleVelocityTracker();
 				break;
 			case MotionEvent.ACTION_CANCEL:
-				scrollMiddle(mListener);
+				scrollMiddle();
 				recycleVelocityTracker();
 				isSlide = false;
 				break;
@@ -337,9 +333,7 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 			postInvalidate();
 			// 滚动动画结束的时候调用回调接口
 			if (scroller.isFinished()) {
-				if (mListener != null) {
-					mListener.onSildeFinish(this, direction);
-				}
+
 			}
 		}
 	}
@@ -347,7 +341,7 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 	/** 
 	 * scroll to right (negative value)
 	 */
-	public void scrollRight(OnSildeListener istener) {
+	public void scrollRight() {
 		if (!scroller.isFinished() || !enableSlideRight) {
 			return;
 		}
@@ -358,14 +352,7 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 			scroller.startScroll(getScrollX(), 0, -deltaX, 0, ANIM_TIME_MIDDLE);
 			postInvalidate(); // 刷新itemView
 		} else if (position == DIRECTION.LEFT) {
-			scrollMiddle(mListener);
-		}
-
-		if (istener == null) {
-			istener = mListener;
-		}
-		if (istener != null) {
-			istener.onSlideBegin(this, direction);
+			scrollMiddle();
 		}
 
 	}
@@ -374,7 +361,7 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 	 * scroll to left (positive value)
 	 */
 	@SuppressLint("NewApi")
-	public void scrollLeft(OnSildeListener istener) {
+	public void scrollLeft() {
 		if (!scroller.isFinished() || !enableSlideLeft) {
 			return;
 		}
@@ -384,21 +371,11 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 			int deltaX = getScrollX() - getWidth();
 			scroller.startScroll(getScrollX(), 0, -deltaX, 0, ANIM_TIME_MIDDLE);
 			postInvalidate(); // refresh
-		} else if (position == DIRECTION.RIGHT) {
-			scrollMiddle(mListener);
-		}
-
-		if (istener == null) {
-			istener = mListener;
-		}
-
-		if (istener != null) {
-			istener.onSlideBegin(this, direction);
 		}
 
 	}
 
-	public void scrollMiddle(OnSildeListener istener) {
+	public void scrollMiddle() {
 		if (!scroller.isFinished()) {
 			return;
 		}
@@ -406,13 +383,6 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 		position = DIRECTION.MIDDLE;
 		scroller.startScroll(getScrollX(), getScrollY(), -getScrollX(), -getScrollY(), ANIM_TIME_MIDDLE);
 		postInvalidate();
-
-		if (istener == null) {
-			istener = mListener;
-		}
-		if (istener != null) {
-			istener.onSlideBegin(this, direction);
-		}
 	}
 
 	/**
@@ -421,12 +391,12 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 	private void scrollByDistanceX() {
 		// 如果向左滚动的距离大于屏幕的二分之一，就让其删除
 		if (getScrollX() >= getWidth() * 0.5) {
-			scrollLeft(mListener);
+			scrollLeft();
 		} else if (getScrollX() <= -getWidth() * 0.5) {
-			scrollRight(mListener);
+			scrollRight();
 		} else {
 			// 滚回到原始位置,为了偷下懒这里是直接调用scrollTo滚动
-			scrollMiddle(mListener);
+			scrollMiddle();
 		}
 
 	}
@@ -457,9 +427,5 @@ public class SlideItemView extends FrameLayout implements AnimationType {
 
 	public void setEnableSlideRight(boolean enable) {
 		enableSlideRight = enable;
-	}
-
-	public void setOnSlideListener(OnSildeListener listener) {
-		this.mListener = listener;
 	}
 }

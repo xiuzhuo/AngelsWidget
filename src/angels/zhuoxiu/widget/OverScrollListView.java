@@ -6,25 +6,25 @@ import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.widget.ScrollView;
 
-public class OverScrollView extends ScrollView {
-	static final String tag = OverScrollView.class.getSimpleName();
+public class OverScrollListView extends ScrollView {
+	static final String tag = OverScrollListView.class.getSimpleName();
 	private static final int MAX_Y_OVERSCROLL_DISTANCE = 50;
 	private Context mContext;
 	private int mMaxYOverscrollDistance;
 
-	public OverScrollView(Context context) {
+	public OverScrollListView(Context context) {
 		super(context);
 		mContext = context;
 		initBounceListView();
 	}
 
-	public OverScrollView(Context context, AttributeSet attrs) {
+	public OverScrollListView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		mContext = context;
 		initBounceListView();
 	}
 
-	public OverScrollView(Context context, AttributeSet attrs, int defStyle) {
+	public OverScrollListView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
 		mContext = context;
 		initBounceListView();
