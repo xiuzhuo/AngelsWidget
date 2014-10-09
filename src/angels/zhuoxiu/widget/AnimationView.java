@@ -305,7 +305,9 @@ public class AnimationView extends FrameLayout implements AnimationType {
 					mDirection = DIRECTION.MIDDLE;
 				}
 
-				slideTrigger.onTriggerSlide(this, mDirection);
+				if (slideTrigger!=null){
+					slideTrigger.onTriggerSlide(this, mDirection);
+				}
 				recycleVelocityTracker();
 				break;
 			case MotionEvent.ACTION_CANCEL:
