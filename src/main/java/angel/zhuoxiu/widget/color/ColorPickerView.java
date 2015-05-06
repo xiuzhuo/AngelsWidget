@@ -18,13 +18,9 @@ import angel.zhuoxiu.widget.R;
  * Created by zxui on 29/04/15.
  */
 class ColorPickerView extends FrameLayout implements ColorPickerConstant {
-    public interface OnColorPickedListener {
-        public void onColorPicked(int index, int color);
-    }
-
     int[] colors = defaultColors;
     GridView gridView;
-    OnColorPickedListener onColorPickedListener;
+    ColorPickerListener colorPickedListener;
     ColorAdapter colorAdapter = new ColorAdapter();
 
     public ColorPickerView(Context context) {
@@ -44,15 +40,15 @@ class ColorPickerView extends FrameLayout implements ColorPickerConstant {
         gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                if (onColorPickedListener != null) {
-                    onColorPickedListener.onColorPicked(position, colorAdapter.getItem(position));
+                if (colorPickedListener != null) {
+                    colorPickedListener.onColorPicked(position, colorAdapter.getItem(position));
                 }
             }
         });
     }
 
-    public void setOnColorPickedListener(OnColorPickedListener onColorPickedListener) {
-        this.onColorPickedListener = onColorPickedListener;
+    public void setColorPickedListener(ColorPickerListener colorPickedListener) {
+        this.colorPickedListener = colorPickedListener;
     }
 
     public void setColors(int... colors) {

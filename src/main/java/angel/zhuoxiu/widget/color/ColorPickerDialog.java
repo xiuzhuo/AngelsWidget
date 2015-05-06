@@ -18,7 +18,7 @@ class ColorPickerDialog extends AlertDialog {
     }
 
     public static class Builder extends AlertDialog.Builder {
-        ColorPickerView.OnColorPickedListener onColorPickedListener;
+        ColorPickerListener colorPickerListener;
         int[] colors;
 
         public Builder(Context context) {
@@ -30,8 +30,8 @@ class ColorPickerDialog extends AlertDialog {
             super(context, theme);
         }
 
-        public void setOnColorPickedListener(ColorPickerView.OnColorPickedListener onColorPickedListener) {
-            this.onColorPickedListener = onColorPickedListener;
+        public void setColorPickerListener(ColorPickerListener colorPickerListener) {
+            this.colorPickerListener = colorPickerListener;
         }
 
         public void setColors(int... colors) {
@@ -42,7 +42,7 @@ class ColorPickerDialog extends AlertDialog {
         public AlertDialog show() {
             ColorPickerView colorPickerView = new ColorPickerView(getContext());
             colorPickerView.setColors(colors);
-            colorPickerView.setOnColorPickedListener(onColorPickedListener);
+            colorPickerView.setColorPickedListener(colorPickerListener);
             this.setView(colorPickerView);
             AlertDialog dialog = super.show();
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));

@@ -19,28 +19,28 @@ public class ColorPickerPreference extends CheckBoxPreference implements ColorPi
     View colorBox;
     int color = Color.TRANSPARENT;
     ColorPickerDialog.Builder builder;
-    ColorPickerView.OnColorPickedListener onColorPickedListener;
+    ColorPickerListener colorPickerListener;
 
     public ColorPickerPreference(Context context, AttributeSet attrs) {
         super(context, attrs);
         builder = new ColorPickerDialog.Builder(context);
         builder.setColors(defaultColors);
         builder.setCancelable(true);
-        builder.setOnColorPickedListener(new ColorPickerView.OnColorPickedListener() {
+        builder.setColorPickerListener(new ColorPickerListener() {
             @Override
             public void onColorPicked(int index, int color) {
                 setColor(color);
                 dialog.dismiss();
-                if (onColorPickedListener != null) {
-                    onColorPickedListener.onColorPicked(index, color);
+                if (colorPickerListener != null) {
+                    colorPickerListener.onColorPicked(index, color);
                 }
             }
         });
 
     }
 
-    public void setOnColorPickedListener(ColorPickerView.OnColorPickedListener onColorPickedListener) {
-        this.onColorPickedListener = onColorPickedListener;
+    public void setColorPickerListener(ColorPickerListener colorPickerListener) {
+        this.colorPickerListener = colorPickerListener;
     }
 
     public void setColors(int... colors) {
