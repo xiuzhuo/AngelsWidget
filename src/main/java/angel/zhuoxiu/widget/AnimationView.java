@@ -1,4 +1,4 @@
-package angels.zhuoxiu.widget;
+package angel.zhuoxiu.widget;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;

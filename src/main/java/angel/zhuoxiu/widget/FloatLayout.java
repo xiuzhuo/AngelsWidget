@@ -1,4 +1,4 @@
-package angels.zhuoxiu.widget;
+package angel.zhuoxiu.widget;
 
 import android.content.Context;
 import android.util.AttributeSet;

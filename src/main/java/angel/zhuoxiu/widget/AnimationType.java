@@ -1,6 +1,4 @@
-package angels.zhuoxiu.widget;
-
-import android.R.integer;
+package angel.zhuoxiu.widget;
 
 //public interface AnimationType {
 //	public static final int TYPE_MIDDLE = 1, TYPE_SLIDE_IN_LEFT = 2, TYPE_SLIDE_OUT_LEFT = 4, TYPE_SLIED_IN_RIGHT = 4, TYPE_SLIED_OUT_RIGHT = 4, TYPE_UP = 8,
